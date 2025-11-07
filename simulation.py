@@ -190,8 +190,8 @@ class Simulation:
             'fec_overhead': metrics_dict['fec_overhead'],
             'bandwidth_mbps': metrics_dict['bandwidth_mbps'],
             'goodput_mbps': metrics_dict['goodput_mbps'],
-            'latency_avg_ms': metrics_dict['latency_avg_ms'],
-            'latency_stddev_ms': metrics_dict['latency_stddev_ms'],
+            'latency_avg_ms': metrics_dict.get('latency_avg_ms', 0.0),
+            'latency_stddev_ms': metrics_dict.get('latency_stddev_ms', 0.0),
             'recovery_time_avg_ms': metrics_dict['recovery_time_avg_ms'],
             'duration_seconds': metrics_dict['duration_seconds'],
         }
