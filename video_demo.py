@@ -97,9 +97,11 @@ class VideoSender:
         chunks = chunk_data(frame_data, self.chunk_size)
         
         # Apply FEC if available
+        parity_flags = []  # Track which packets are parity
         if self.fec:
             # Process in blocks
             block_size = self.fec.block_size
+            parity_count = self.fec.get_parity_count()
             all_packets = []
             
             for i in range(0, len(chunks), block_size):
@@ -109,13 +111,20 @@ class VideoSender:
                 
                 encoded_block = self.fec.encode(block)
                 all_packets.extend(encoded_block)
+                
+                # Mark data packets as False, parity packets as True
+                parity_flags.extend([False] * block_size)  # Data packets
+                parity_flags.extend([True] * parity_count)  # Parity packets
             
             chunks = all_packets
+        else:
+            # No FEC - all packets are data
+            parity_flags = [False] * len(chunks)
         
         # Send all chunks
         for i, chunk in enumerate(chunks):
             packet = create_packet(frame_num * 10000 + i, chunk,
-                                 is_parity=(self.fec and i >= len(chunks) - self.fec.get_parity_count()))
+                                 is_parity=parity_flags[i])
             self.socket.sendto(packet, (self.host, self.port))
     
     def start(self):
@@ -390,7 +399,12 @@ class VideoReceiver:
                 # Try to decode this block with FEC
                 try:
                     decoded_block = self.fec.decode(block_chunks, loss_map)
-                    recovered_chunks.extend(decoded_block)
+                    # Ensure all chunks are bytes (not None)
+                    for chunk in decoded_block:
+                        if chunk is None:
+                            recovered_chunks.append(b'')
+                        else:
+                            recovered_chunks.append(chunk)
                 except Exception as e:
                     # FEC decode failed, use only available data chunks (skip parity)
                     for i in range(block_size):
@@ -400,8 +414,8 @@ class VideoReceiver:
                             # Missing chunk, can't recover
                             recovered_chunks.append(b'')
             
-            # Combine recovered chunks
-            frame_data = b''.join(recovered_chunks)
+            # Combine recovered chunks (ensure all are bytes)
+            frame_data = b''.join([c if c is not None else b'' for c in recovered_chunks])
         else:
             # No FEC - just concatenate data chunks in order
             sorted_chunks = sorted(chunks_dict.items())

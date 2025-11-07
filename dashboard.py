@@ -118,7 +118,7 @@ def plot_recovery_ratio_vs_loss(df: pd.DataFrame):
         height=400
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def plot_bandwidth_comparison(df: pd.DataFrame):
@@ -160,7 +160,7 @@ def plot_bandwidth_comparison(df: pd.DataFrame):
         height=400
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def plot_overhead_comparison(df: pd.DataFrame):
@@ -187,7 +187,7 @@ def plot_overhead_comparison(df: pd.DataFrame):
         height=400
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def plot_recovery_time_distribution(df: pd.DataFrame):
@@ -222,7 +222,7 @@ def plot_recovery_time_distribution(df: pd.DataFrame):
         height=400
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def run_video_demo():
@@ -230,11 +230,203 @@ def run_video_demo():
     st.header("🎬 Live Video Streaming Demo")
     st.markdown("Compare **Vanilla UDP** vs **FEC-protected** video transmission with simulated packet loss.")
     
+    # Create sub-tabs for different demo modes
+    subtab1, subtab2 = st.tabs(["📤 Upload Your Video", "🎥 Test Video Demo"])
+    
+    with subtab1:
+        run_upload_video_demo()
+    
+    with subtab2:
+        run_test_video_demo()
+
+
+def run_upload_video_demo():
+    """Handle custom video upload and demo."""
+    st.subheader("📤 Upload Your Own Video")
+    st.markdown("Upload a video file to test FEC protection with your own content!")
+    
+    uploaded_file = st.file_uploader(
+        "Choose a video file (MP4, AVI, MOV, MKV)",
+        type=['mp4', 'avi', 'mov', 'mkv'],
+        help="Upload a video file to test with FEC"
+    )
+    
+    if uploaded_file is not None:
+        # Save uploaded file temporarily
+        temp_video_path = f"temp_uploaded_{uploaded_file.name}"
+        
+        with open(temp_video_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        
+        st.success(f"✅ Video uploaded: {uploaded_file.name}")
+        
+        # Show video info
+        try:
+            cap = cv2.VideoCapture(temp_video_path)
+            if cap.isOpened():
+                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                fps = int(cap.get(cv2.CAP_PROP_FPS))
+                frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                duration = frame_count / fps if fps > 0 else 0
+                
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Resolution", f"{width}x{height}")
+                col2.metric("FPS", fps)
+                col3.metric("Frames", frame_count)
+                col4.metric("Duration", f"{duration:.1f}s")
+                
+                # Show preview frame
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_count // 2)
+                ret, frame = cap.read()
+                if ret:
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    st.image(frame_rgb, caption="Video Preview", width="stretch")
+                
+                cap.release()
+            else:
+                st.error("❌ Could not open video file")
+                return
+        except Exception as e:
+            st.error(f"❌ Error reading video: {e}")
+            return
+        
+        st.markdown("---")
+        
+        # Configuration
+        st.subheader("⚙️ Demo Configuration")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            fec_scheme = st.selectbox(
+                "FEC Scheme",
+                options=['xor_simple', 'xor_interleaved', 'xor_dual_parity'],
+                help="FEC algorithm for the protected stream",
+                key="upload_fec"
+            )
+        
+        with col2:
+            loss_rate = st.slider(
+                "Packet Loss Rate",
+                min_value=0.0,
+                max_value=0.5,
+                value=0.2,
+                step=0.05,
+                help="Simulated packet loss rate",
+                key="upload_loss"
+            )
+        
+        with col3:
+            block_size = st.slider(
+                "FEC Block Size",
+                min_value=2,
+                max_value=16,
+                value=4,
+                step=1,
+                help="Packets per FEC block",
+                key="upload_block"
+            )
+        
+        loop_video = st.checkbox("Loop video continuously", value=False, help="Loop video or play once", key="upload_loop")
+        
+        st.markdown("---")
+        
+        # Build and show command
+        st.subheader("🚀 Run Video Demo")
+        
+        cmd_parts = [
+            'python', 'video_demo.py',
+            '--video', temp_video_path,
+            '--fec', fec_scheme,
+            '--loss_rate', str(loss_rate),
+            '--block_size', str(block_size)
+        ]
+        
+        if loop_video:
+            cmd_parts.append('--loop')
+        
+        st.code(' '.join(cmd_parts), language='bash')
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("▶️ Start Demo", type="primary"):
+                try:
+                    import subprocess
+                    # Run in background
+                    process = subprocess.Popen(
+                        cmd_parts,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE
+                    )
+                    
+                    st.success("✅ Video demo started! Check the OpenCV windows.")
+                    st.info("💡 Press 'q' in the video windows to stop the demo.")
+                    
+                except Exception as e:
+                    st.error(f"❌ Failed to start demo: {e}")
+        
+        with col2:
+            if st.button("🗑️ Delete Uploaded Video"):
+                try:
+                    if os.path.exists(temp_video_path):
+                        os.remove(temp_video_path)
+                        st.success("✅ Uploaded video deleted")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Failed to delete: {e}")
+        
+        # Instructions
+        with st.expander("📖 How to Use"):
+            st.markdown("""
+            ### Steps:
+            1. **Upload** your video file above
+            2. **Configure** FEC parameters (scheme, loss rate, block size)
+            3. **Click** "▶️ Start Demo" to launch the video streaming
+            4. **Watch** two windows appear:
+               - **Left window:** Vanilla UDP (with packet loss artifacts)
+               - **Right window:** FEC Protected (with recovery)
+            5. **Press 'q'** in either window to exit
+            
+            ### What You'll See:
+            - Real-time side-by-side comparison
+            - Vanilla UDP shows visible glitches from packet loss
+            - FEC-protected stream shows smoother playback
+            - Demonstrates FEC effectiveness in recovering lost packets
+            
+            ### Requirements:
+            - X11/Display server for OpenCV windows
+            - Ports 11000 and 11001 available
+            - Video file in supported format
+            """)
+    
+    else:
+        st.info("👆 Upload a video file to get started!")
+        
+        # Show example
+        st.markdown("### 📝 Or use the test video")
+        st.markdown("If you don't have a video, switch to the **'Test Video Demo'** tab or generate a test video:")
+        
+        if st.button("🎬 Generate Test Video"):
+            with st.spinner("Generating test video..."):
+                result = subprocess.run(
+                    ['python', 'generate_test_video.py', '--output', 'test_video.mp4', '--duration', '10'],
+                    capture_output=True
+                )
+                if result.returncode == 0:
+                    st.success("✅ Test video generated! Switch to the 'Test Video Demo' tab.")
+                else:
+                    st.error("❌ Failed to generate video")
+
+
+def run_test_video_demo():
+    """Run demo with the test video."""
     # Check if video file exists
     video_path = "test_video.mp4"
     if not os.path.exists(video_path):
         st.warning("⚠️ Test video not found. Generate it first!")
-        if st.button("🎬 Generate Test Video"):
+        if st.button("🎬 Generate Test Video", key="gen_test_video"):
             with st.spinner("Generating test video..."):
                 result = subprocess.run(
                     ['python', 'generate_test_video.py', '--output', video_path, '--duration', '5'],
@@ -247,7 +439,7 @@ def run_video_demo():
                     st.error("❌ Failed to generate video")
         return
     
-    st.info("ℹ️ **Note:** This demo requires a video file. The side-by-side comparison shows frame differences under packet loss.")
+    st.info("ℹ️ **Note:** This demo uses the test video. The side-by-side comparison shows frame differences under packet loss.")
     
     col1, col2 = st.columns(2)
     
@@ -257,7 +449,8 @@ def run_video_demo():
         fec_scheme = st.selectbox(
             "FEC Scheme",
             options=['xor_simple', 'xor_interleaved', 'xor_dual_parity'],
-            help="FEC algorithm for the protected stream"
+            help="FEC algorithm for the protected stream",
+            key="test_fec"
         )
         
         loss_rate = st.slider(
@@ -266,7 +459,8 @@ def run_video_demo():
             max_value=0.5,
             value=0.2,
             step=0.05,
-            help="Simulated packet loss rate for both streams"
+            help="Simulated packet loss rate for both streams",
+            key="test_loss"
         )
         
         block_size = st.slider(
@@ -275,15 +469,20 @@ def run_video_demo():
             max_value=16,
             value=4,
             step=1,
-            help="Number of packets per FEC block"
+            help="Number of packets per FEC block",
+            key="test_block"
         )
     
     with col2:
         st.subheader("📊 Comparison")
+        
+        # Ensure fec_scheme is a string
+        fec_name = fec_scheme if isinstance(fec_scheme, str) else ['xor_simple', 'xor_interleaved', 'xor_dual_parity'][fec_scheme]
+        
         st.markdown(
             f"""
             **Loss Rate:** {loss_rate:.0%}  
-            **FEC Scheme:** {fec_scheme.replace('_', ' ').title()}  
+            **FEC Scheme:** {fec_name.replace('_', ' ').title()}  
             **Block Size:** {block_size}
             
             **Left Stream:** Vanilla UDP (no protection)  
@@ -324,7 +523,7 @@ def run_video_demo():
                         x = np.random.randint(0, w - 20)
                         y = np.random.randint(0, h - 20)
                         corrupted_frame[y:y+20, x:x+20] = 0
-                st.image(corrupted_frame, caption=f"With {loss_rate:.0%} packet loss", use_container_width=True)
+                st.image(corrupted_frame, caption=f"With {loss_rate:.0%} packet loss", width="stretch")
             
             with col_right:
                 st.markdown(f"**FEC Protected** ({fec_scheme})")
@@ -338,7 +537,7 @@ def run_video_demo():
                         x = np.random.randint(0, w - 10)
                         y = np.random.randint(0, h - 10)
                         recovered_frame[y:y+10, x:x+10] = recovered_frame[y:y+10, x:x+10] * 0.7
-                st.image(recovered_frame, caption="FEC recovers most lost data", use_container_width=True)
+                st.image(recovered_frame, caption="FEC recovers most lost data", width="stretch")
     
     except Exception as e:
         st.error(f"Error loading video: {e}")
@@ -360,8 +559,11 @@ def run_video_demo():
         st.caption("Lost packets cause visible artifacts and frame corruption")
     
     with col2:
+        # Ensure fec_scheme is a string
+        fec_name = fec_scheme if isinstance(fec_scheme, str) else ['xor_simple', 'xor_interleaved', 'xor_dual_parity'][fec_scheme]
+        
         st.metric(
-            f"{fec_scheme.replace('_', ' ').title()}",
+            f"{fec_name.replace('_', ' ').title()}",
             "Better quality",
             delta="Partial/full recovery",
             delta_color="normal"
@@ -628,7 +830,7 @@ def show_simulation_tab():
         'Goodput (Mbps)', 'Avg Recovery Time (ms)'
     ]
     
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df)
     
     # Download results button
     st.download_button(
