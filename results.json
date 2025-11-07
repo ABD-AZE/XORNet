@@ -1,0 +1,42 @@
+[
+  {
+    "fec": "xor_simple",
+    "loss_rate": 0.1,
+    "block_size": 8,
+    "data_size": 51200,
+    "packet_size": 1024,
+    "packets_sent": 63,
+    "packets_received": 60,
+    "packets_lost": 3,
+    "packets_recovered": 0,
+    "loss_rate_actual": 0.05,
+    "recovery_ratio": 0.0,
+    "fec_overhead": 0.12,
+    "bandwidth_mbps": 0.7878253930059165,
+    "goodput_mbps": 0.7034155294695682,
+    "latency_avg_ms": 0.0,
+    "latency_stddev_ms": 0.0,
+    "recovery_time_avg_ms": 0.0,
+    "duration_seconds": 0.5823016166687012
+  },
+  {
+    "fec": "xor_simple",
+    "loss_rate": 0.1,
+    "block_size": 5,
+    "data_size": 51200,
+    "packet_size": 1024,
+    "packets_sent": 60,
+    "packets_received": 53,
+    "packets_lost": 7,
+    "packets_recovered": 2,
+    "loss_rate_actual": 0.1320754716981132,
+    "recovery_ratio": 0.2857142857142857,
+    "fec_overhead": 0.17777777777777778,
+    "bandwidth_mbps": 0.752892446337793,
+    "goodput_mbps": 0.6392483034943525,
+    "latency_avg_ms": 0.0,
+    "latency_stddev_ms": 0.0,
+    "recovery_time_avg_ms": 0.9464025497436523,
+    "duration_seconds": 0.5766773223876953
+  }
+]
