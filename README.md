@@ -57,15 +57,21 @@ xor_fec_udp/
 ### Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install streamlit==1.28.0
+pip install pandas==2.1.0
+pip install plotly==5.17.0
+pip install opencv-python==4.8.1.78
+pip install "pygame>=2.1.3"
+pip install numpy==1.24.3
 ```
 
 The required packages are:
 - `streamlit` - For the interactive dashboard
 - `pandas` - For data manipulation
 - `plotly` - For interactive visualizations
-- `opencv-python` - For video demo (optional)
+- `opencv-python` - For video demo 
 - `numpy` - For numerical operations
+ - `pygame` - For video/demo display or input handling 
 
 ## 📊 Usage
 
