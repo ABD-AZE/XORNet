@@ -569,7 +569,7 @@ def run_demo(video_path: str, fec_type: str, loss_rate: float, block_size: int, 
                 time.sleep(2)
                 running = False
             
-            clock.tick(30)  # Limit display FPS to 30
+            clock.tick(75)
 
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
