@@ -118,7 +118,7 @@ def plot_recovery_ratio_vs_loss(df: pd.DataFrame):
         height=400
     )
     
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def plot_bandwidth_comparison(df: pd.DataFrame):
@@ -160,7 +160,7 @@ def plot_bandwidth_comparison(df: pd.DataFrame):
         height=400
     )
     
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def plot_overhead_comparison(df: pd.DataFrame):
@@ -281,7 +281,7 @@ def run_upload_video_demo():
                 ret, frame = cap.read()
                 if ret:
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    st.image(frame_rgb, caption="Video Preview", width="stretch")
+                    st.image(frame_rgb, caption="Video Preview", use_column_width=True)
                 
                 cap.release()
             else:
@@ -523,7 +523,7 @@ def run_test_video_demo():
                         x = np.random.randint(0, w - 20)
                         y = np.random.randint(0, h - 20)
                         corrupted_frame[y:y+20, x:x+20] = 0
-                st.image(corrupted_frame, caption=f"With {loss_rate:.0%} packet loss", width="stretch")
+                st.image(corrupted_frame, caption=f"With {loss_rate:.0%} packet loss", use_column_width=True)
             
             with col_right:
                 st.markdown(f"**FEC Protected** ({fec_scheme})")
@@ -537,7 +537,7 @@ def run_test_video_demo():
                         x = np.random.randint(0, w - 10)
                         y = np.random.randint(0, h - 10)
                         recovered_frame[y:y+10, x:x+10] = recovered_frame[y:y+10, x:x+10] * 0.7
-                st.image(recovered_frame, caption="FEC recovers most lost data", width="stretch")
+                st.image(recovered_frame, caption="FEC recovers most lost data", use_column_width=True)
     
     except Exception as e:
         st.error(f"Error loading video: {e}")
