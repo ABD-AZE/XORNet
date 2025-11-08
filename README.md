@@ -129,7 +129,7 @@ Compare vanilla UDP vs FEC-protected video transmission:
 
 ```bash
 # First, ensure you have a video file (e.g., sample.mp4)
-python video_demo.py --video sample.mp4 --fec xor_simple --loss_rate 0.2 --block_size 4
+python video_demo.py --video test_video.mp4 --fec xor_simple --loss_rate 0.2 --block_size 4
 ```
 
 **Video Demo Options:**
