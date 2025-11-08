@@ -16,6 +16,7 @@ import sys
 import warnings
 import os
 import contextlib
+import pygame
 
 from fec import XORSimpleFEC, XORInterleavedFEC, XORDualParityFEC
 from utils import chunk_data, create_packet, parse_packet, get_logger
@@ -514,35 +515,52 @@ def run_demo(video_path: str, fec_type: str, loss_rate: float, block_size: int, 
     thread_send_vanilla.start()
     thread_send_protected.start()
     
-    logger.info("Demo running. Press 'q' in video windows to quit.")
+    logger.info("Demo running. Press 'q' or close the window to quit.")
+
+    # Initialize Pygame
+    pygame.init()
+    screen_width = 640  # 320 * 2
+    screen_height = 240
+    screen = pygame.display.set_mode((screen_width, screen_height))
+    pygame.display.set_caption("FEC Video Demo (Vanilla UDP vs FEC Protected)")
     
-    # Create windows in main thread
-    cv2.namedWindow("Vanilla UDP", cv2.WINDOW_NORMAL)
-    cv2.namedWindow("FEC Protected", cv2.WINDOW_NORMAL)
-    cv2.resizeWindow("Vanilla UDP", 320, 240)
-    cv2.resizeWindow("FEC Protected", 320, 240)
-    
-    # Move windows side by side
-    cv2.moveWindow("Vanilla UDP", 50, 50)
-    cv2.moveWindow("FEC Protected", 400, 50)
+    # Create placeholder surfaces
+    font = pygame.font.SysFont(None, 30)
+    vanilla_placeholder_text = font.render('Waiting for Vanilla...', True, (255, 255, 255))
+    fec_placeholder_text = font.render('Waiting for FEC...', True, (255, 255, 255))
     
     try:
         # Display loop in main thread
         running = True
+        clock = pygame.time.Clock()
         while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_q:
+                        running = False
+
             # Display frames from receivers
+            # Vanilla frame
             if receiver_vanilla.current_frame is not None:
-                cv2.imshow("Vanilla UDP", receiver_vanilla.current_frame)
-            
+                frame_bgr = receiver_vanilla.current_frame
+                frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+                pygame_surface = pygame.surfarray.make_surface(frame_rgb.swapaxes(0, 1))
+                screen.blit(pygame_surface, (0, 0))
+            else:
+                screen.blit(vanilla_placeholder_text, (50, 100))
+
+            # FEC protected frame
             if receiver_protected.current_frame is not None:
-                cv2.imshow("FEC Protected", receiver_protected.current_frame)
-            
-            # Check for quit
-            key = cv2.waitKey(30) & 0xFF  # 30ms delay for ~33 FPS display
-            if key == ord('q'):
-                running = False
-                logger.info("User pressed 'q' to quit")
-                break
+                frame_bgr = receiver_protected.current_frame
+                frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+                pygame_surface = pygame.surfarray.make_surface(frame_rgb.swapaxes(0, 1))
+                screen.blit(pygame_surface, (320, 0))
+            else:
+                screen.blit(fec_placeholder_text, (370, 100))
+
+            pygame.display.flip()
             
             # Auto-exit if not looping and both senders completed
             if not loop and sender_vanilla.completed and sender_protected.completed:
@@ -550,18 +568,9 @@ def run_demo(video_path: str, fec_type: str, loss_rate: float, block_size: int, 
                 logger.info("Auto-exiting in 2 seconds...")
                 time.sleep(2)
                 running = False
-                break
             
-            # Also check if sender threads are done
-            if not loop and not thread_send_vanilla.is_alive() and not thread_send_protected.is_alive():
-                time.sleep(0.5)  # Give a moment for final frames
-                if sender_vanilla.completed or sender_protected.completed:
-                    logger.info("✅ Video transmission completed!")
-                    logger.info("Auto-exiting in 2 seconds...")
-                    time.sleep(2)
-                    running = False
-                    break
-    
+            clock.tick(30)  # Limit display FPS to 30
+
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
     finally:
@@ -577,7 +586,7 @@ def run_demo(video_path: str, fec_type: str, loss_rate: float, block_size: int, 
         thread_send_vanilla.join(timeout=2)
         thread_send_protected.join(timeout=2)
         
-        cv2.destroyAllWindows()
+        pygame.quit()
         
         # Print summary
         logger.info("=" * 60)
