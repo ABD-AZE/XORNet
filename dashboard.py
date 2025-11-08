@@ -242,27 +242,54 @@ def run_video_demo():
 
 def run_upload_video_demo():
     """Handle custom video upload and demo."""
-    st.subheader("📤 Upload Your Own Video")
-    st.markdown("Upload a video file to test FEC protection with your own content!")
-    
+    st.subheader("📤 Select or Upload a Video")
+    st.markdown("Choose a video from the list of available files, or upload a new one.")
+
+    # Find local video files
+    video_extensions = ['.mp4', '.avi', '.mov', '.mkv']
+    try:
+        local_videos = [f for f in os.listdir('.') if os.path.splitext(f)[1].lower() in video_extensions]
+    except Exception:
+        local_videos = []
+
+    # --- Video Selection ---
+    video_path = None
+
+    # Option 1: Select from a list of local videos
+    if local_videos:
+        selected_local_video = st.selectbox(
+            "Choose from available videos",
+            options=["<Select a video>"] + sorted(local_videos),
+            index=0,
+            help="Select a pre-existing video in the project directory."
+        )
+        if selected_local_video != "<Select a video>":
+            video_path = selected_local_video
+
+    # Option 2: Upload a new video
+    st.markdown("---")
     uploaded_file = st.file_uploader(
-        "Choose a video file (MP4, AVI, MOV, MKV)",
+        "Or upload a new video file (MP4, AVI, MOV, MKV)",
         type=['mp4', 'avi', 'mov', 'mkv'],
         help="Upload a video file to test with FEC"
     )
     
     if uploaded_file is not None:
-        # Save uploaded file temporarily
+        # If a file is uploaded, it takes precedence
         temp_video_path = f"temp_uploaded_{uploaded_file.name}"
-        
         with open(temp_video_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
-        
-        st.success(f"✅ Video uploaded: {uploaded_file.name}")
+        video_path = temp_video_path
+        st.info(f"Using uploaded video: {uploaded_file.name}")
+
+
+    if video_path:
+        st.success(f"✅ Ready to run demo with: **{os.path.basename(video_path)}**")
+        st.markdown("---")
         
         # Show video info
         try:
-            cap = cv2.VideoCapture(temp_video_path)
+            cap = cv2.VideoCapture(video_path)
             if cap.isOpened():
                 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -337,7 +364,7 @@ def run_upload_video_demo():
         
         cmd_parts = [
             'python', 'video_demo.py',
-            '--video', temp_video_path,
+            '--video', video_path,
             '--fec', fec_scheme,
             '--loss_rate', str(loss_rate),
             '--block_size', str(block_size)
@@ -353,9 +380,8 @@ def run_upload_video_demo():
         with col1:
             if st.button("▶️ Start Demo", type="primary"):
                 try:
-                    import subprocess
                     # Run in background
-                    process = subprocess.Popen(
+                    subprocess.Popen(
                         cmd_parts,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE
@@ -367,42 +393,32 @@ def run_upload_video_demo():
                 except Exception as e:
                     st.error(f"❌ Failed to start demo: {e}")
         
-        with col2:
-            if st.button("🗑️ Delete Uploaded Video"):
-                try:
-                    if os.path.exists(temp_video_path):
-                        os.remove(temp_video_path)
-                        st.success("✅ Uploaded video deleted")
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Failed to delete: {e}")
+        if "temp_uploaded_" in video_path:
+            with col2:
+                if st.button("🗑️ Delete Uploaded Video"):
+                    try:
+                        if os.path.exists(video_path):
+                            os.remove(video_path)
+                            st.success("✅ Uploaded video deleted")
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Failed to delete: {e}")
         
         # Instructions
         with st.expander("📖 How to Use"):
             st.markdown("""
             ### Steps:
-            1. **Upload** your video file above
-            2. **Configure** FEC parameters (scheme, loss rate, block size)
-            3. **Click** "▶️ Start Demo" to launch the video streaming
+            1. **Select** a video from the dropdown or upload a new one.
+            2. **Configure** FEC parameters (scheme, loss rate, block size).
+            3. **Click** "▶️ Start Demo" to launch the video streaming.
             4. **Watch** two windows appear:
                - **Left window:** Vanilla UDP (with packet loss artifacts)
                - **Right window:** FEC Protected (with recovery)
-            5. **Press 'q'** in either window to exit
-            
-            ### What You'll See:
-            - Real-time side-by-side comparison
-            - Vanilla UDP shows visible glitches from packet loss
-            - FEC-protected stream shows smoother playback
-            - Demonstrates FEC effectiveness in recovering lost packets
-            
-            ### Requirements:
-            - X11/Display server for OpenCV windows
-            - Ports 11000 and 11001 available
-            - Video file in supported format
+            5. **Press 'q'** in either window to exit.
             """)
     
     else:
-        st.info("👆 Upload a video file to get started!")
+        st.info("👆 Select a video from the dropdown or upload one to get started!")
         
         # Show example
         st.markdown("### 📝 Or use the test video")
